@@ -176,10 +176,9 @@ public class ROIMeasures extends EzPlug
 	@Override
 	protected void initialize()
 	{
-		//getUI().setParametersIOVisible(false);
-		getUI().setProgressBarVisible(false);
+		getUI().setParametersIOVisible(false);
 		getUI().setRunButtonText("Update");
-		getUI().setResizable(true);
+		getUI().setActionPanelVisible(!liveUpdate.getValue());
 		
 		addEzComponent(currentSeq);
 		
@@ -201,7 +200,7 @@ public class ROIMeasures extends EzPlug
 			throw new EzException("ROI Meaasures: unable to initialize\n(see output console for details)", true);
 		}
 		
-		EzButton buttonExport = new EzButton("Export CSV file", new ActionListener()
+		EzButton buttonExport = new EzButton("Export to .CSV file...", new ActionListener()
 		{
 			@Override
 			public void actionPerformed(ActionEvent e)
