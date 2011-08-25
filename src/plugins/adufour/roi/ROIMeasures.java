@@ -339,7 +339,7 @@ public class ROIMeasures extends EzPlug
 		{
 			int row = sequence.getROI2Ds().indexOf(roi) + 1;
 			
-			WritableSheet sheet = workbook.getSheet(getSheetName(sequence));
+			WritableSheet sheet = getOrCreateSheet(sequence);
 			
 			// set the name
 			sheet.addCell(new Label(0, row, roi.getName()));
