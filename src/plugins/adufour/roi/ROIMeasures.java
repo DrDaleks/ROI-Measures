@@ -392,7 +392,7 @@ public class ROIMeasures extends EzPlug
 			sheet.addCell(new Number(5, row, bounds.y + bounds.height));
 			
 			boolean[] mask = roi.getAsBooleanMask().mask;
-			Object[] z_xy = (Object[]) sequence.getFirstImage().getDataXYC();
+			Object[][] z_c_xy = (Object[][]) sequence.getDataXYCZ(sequence.getFirstViewer().getT());
 			boolean signed = sequence.isSignedDataType();
 			int width = sequence.getSizeX();
 			int height = sequence.getSizeY();
@@ -406,8 +406,9 @@ public class ROIMeasures extends EzPlug
 				for (int ix = bounds.x, mx = 0; mx < bounds.width; mx++, ix++, ioff++, moff++)
 				{
 					if (iy >= 0 && ix >= 0 && iy < height && ix < width && mask[moff])
-						for (int c = 0; c < sum.length; c++)
-							sum[c] += Array1DUtil.getValue(z_xy[c], ioff, signed);
+						for (int z = 0; z < sequence.getSizeZ(); z++)
+							for (int c = 0; c < sum.length; c++)
+								sum[c] += Array1DUtil.getValue(z_c_xy[z][c], ioff, signed);
 				}
 			
 			for (int c = 0; c < sum.length; c++)
