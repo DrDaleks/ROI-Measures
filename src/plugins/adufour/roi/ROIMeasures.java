@@ -151,7 +151,7 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 			public void variableChanged(EzVar<Sequence> source, Sequence sequence)
 			{
 				table.updateSheet(sequence == null ? null : getOrCreateSheet(sequence));
-				if (sequence != null) update(sequence);
+				if (sequence != null && sequence.getFirstViewer() != null) update(sequence);
 				getUI().repack(false);
 			}
 		});
