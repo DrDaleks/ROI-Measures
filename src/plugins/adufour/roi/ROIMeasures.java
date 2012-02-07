@@ -44,10 +44,10 @@ import plugins.adufour.ezplug.EzVarSequence;
 
 public class ROIMeasures extends EzPlug implements MainListener, SequenceListener
 {
-	private static File xlsFile;
-
-	private static WritableWorkbook workbook;
-
+	private static File					xlsFile;
+	
+	private static WritableWorkbook		workbook;
+	
 	// Create a static workbook instance to make sure a single file is opened
 	static
 	{
@@ -55,7 +55,7 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 		{
 			xlsFile = File.createTempFile("icy_ROI_Measures_" + UUID.randomUUID().toString(), "xls");
 			workbook = Workbook.createWorkbook(xlsFile);
-
+			
 		}
 		catch (IOException e)
 		{
@@ -63,42 +63,42 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 			throw new EzException("ROI Meaasures: unable to initialize\n(see output console for details)", true);
 		}
 	}
-
-	private final EzVarSequence currentSeq = new EzVarSequence("Current sequence");
-
-	private final EzVarBoolean liveUpdate = new EzVarBoolean("Auto-update", true);
-
-	private final ExcelTable table = new ExcelTable();
-
-	private final HashMap<ROI2D, Color> ROIColors = new HashMap<ROI2D, Color>();
-
+	
+	private final EzVarSequence			currentSeq	= new EzVarSequence("Current sequence");
+	
+	private final EzVarBoolean			liveUpdate	= new EzVarBoolean("Auto-update", true);
+	
+	private final ExcelTable			table		= new ExcelTable();
+	
+	private final HashMap<ROI2D, Color>	ROIColors	= new HashMap<ROI2D, Color>();
+	
 	@Override
 	protected void initialize()
 	{
 		getUI().setParametersIOVisible(false);
 		getUI().setRunButtonText("Update");
 		getUI().setActionPanelVisible(!liveUpdate.getValue());
-
+		
 		addEzComponent(currentSeq);
-
+		
 		addEzComponent(liveUpdate);
-
+		
 		table.setPreferredSize(new Dimension(500, 100));
-
+		
 		addComponent(table);
-
+		
 		try
 		{
 			xlsFile = File.createTempFile("icy_ROI_Measures_" + UUID.randomUUID().toString(), "xls");
 			workbook = Workbook.createWorkbook(xlsFile);
-
+			
 		}
 		catch (IOException e)
 		{
 			e.printStackTrace();
 			throw new EzException("ROI Meaasures: unable to initialize\n(see output console for details)", true);
 		}
-
+		
 		EzButton buttonExport = new EzButton("Export to .CSV file...", new ActionListener()
 		{
 			@Override
@@ -112,15 +112,15 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 					{
 						return f.isDirectory() || f.getAbsolutePath().toLowerCase().endsWith(".csv");
 					}
-
+					
 					@Override
 					public String getDescription()
 					{
 						return ".CSV (Comma Separated Values)";
 					}
 				});
-
-				if (jfc.showSaveDialog(getUI()) == JFileChooser.APPROVE_OPTION)
+				
+				if (jfc.showSaveDialog(null) == JFileChooser.APPROVE_OPTION)
 				{
 					try
 					{
@@ -133,18 +133,18 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 				}
 			}
 		});
-
+		
 		addEzComponent(buttonExport);
-
+		
 		// Listeners
-
+		
 		// add a listener to currently opened sequences
 		for (final Sequence sequence : Icy.getMainInterface().getSequences())
 			sequence.addListener(this);
-
+		
 		// add a listener to detect newly opened sequences
 		Icy.getMainInterface().addListener(this);
-
+		
 		currentSeq.addVarChangeListener(new EzVarListener<Sequence>()
 		{
 			@Override
@@ -155,7 +155,7 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 				getUI().repack(false);
 			}
 		});
-
+		
 		liveUpdate.addVarChangeListener(new EzVarListener<Boolean>()
 		{
 			@Override
@@ -164,7 +164,7 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 				getUI().setActionPanelVisible(!newValue);
 			}
 		});
-
+		
 		try
 		{
 			currentSeq.setValue(getFocusedSequence());
@@ -175,7 +175,7 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 		{
 		}
 	}
-
+	
 	/**
 	 * Creates a new sheet for the given sequence, or returns the current existing sheet (if any)
 	 * 
@@ -185,13 +185,13 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 	private static synchronized WritableSheet getOrCreateSheet(Sequence sequence)
 	{
 		String sheetName = getSheetName(sequence);
-
+		
 		WritableSheet sheet = workbook.getSheet(sheetName);
-
+		
 		if (sheet == null)
 		{
 			sheet = workbook.createSheet(sheetName, workbook.getNumberOfSheets() + 1);
-
+			
 			try
 			{
 				sheet.addCell(new Label(0, 0, "Name"));
@@ -207,7 +207,7 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 					sheet.addCell(new Label(5 + 4 * c + 3, 0, "avg. (ch " + c + ")"));
 					sheet.addCell(new Label(5 + 4 * c + 4, 0, "sum. (ch " + c + ")"));
 				}
-
+				
 			}
 			catch (RowsExceededException e)
 			{
@@ -218,56 +218,58 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 				e.printStackTrace();
 			}
 		}
-
+		
 		return sheet;
 	}
-
+	
 	private static String getSheetName(Sequence s)
 	{
 		return "Sequence " + s.hashCode();
 	}
-
+	
 	@Override
 	protected void execute()
 	{
 		update(currentSeq.getValue());
 	}
-
+	
 	private void update(Sequence sequence)
 	{
+		if (sequence == null) return;
+		
 		for (ROI2D roi : sequence.getROI2Ds())
 			update(sequence, roi);
 	}
-
+	
 	private void update(Sequence sequence, ROI2D roi)
 	{
 		try
 		{
 			int row = sequence.getROI2Ds().indexOf(roi) + 1;
-
+			
 			WritableSheet sheet = getOrCreateSheet(sequence);
-
+			
 			// set the name
 			sheet.addCell(new Label(0, row, roi.getName()));
-
+			
 			// set the color (if it has changed)
 			if (roi.getColor() != ROIColors.get(roi))
 			{
 				ROIColors.put(roi, roi.getColor());
-
+				
 				// JXL is VERY nasty, won't allow custom (AWT) colors !!!
-
+				
 				// walk-around: look for the closest color match
 				Color col = roi.getColor();
 				Point3d cval = new Point3d(col.getRed(), col.getGreen(), col.getBlue());
-
+				
 				Colour colour = Colour.AUTOMATIC;
 				double minDistance = Double.MAX_VALUE;
 				for (Colour c : Colour.getAllColours())
 				{
 					RGB rgb = c.getDefaultRGB();
 					Point3d cval_jxl = new Point3d(rgb.getRed(), rgb.getGreen(), rgb.getBlue());
-
+					
 					// compute (squared) distance (to go faster)
 					// I mean, this is lame anyway, isn't it !!
 					double dist = cval.distanceSquared(cval_jxl);
@@ -277,7 +279,7 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 						colour = c;
 					}
 				}
-
+				
 				// do you realize what we did JUST to get the color ?!!
 				final Colour finalColour = colour;
 				sheet.addCell(new Label(1, row, colour.getDescription(), new WritableCellFormat()
@@ -289,43 +291,42 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 					}
 				}));
 			}
-
+			
 			// set x,y,w,h
 			Rectangle bounds = roi.getBounds();
 			sheet.addCell(new Number(2, row, bounds.x));
 			sheet.addCell(new Number(3, row, bounds.y));
 			sheet.addCell(new Number(4, row, bounds.width));
 			sheet.addCell(new Number(5, row, bounds.height));
-
+			
 			boolean[] mask = roi.getAsBooleanMask().mask;
 			Object[][] z_c_xy = (Object[][]) sequence.getDataXYCZ(sequence.getFirstViewer().getT());
 			boolean signed = sequence.getDataType_().isSigned();
 			int width = sequence.getSizeX();
 			int height = sequence.getSizeY();
-
+			
 			double[] min = new double[sequence.getSizeC()];
 			double[] max = new double[sequence.getSizeC()];
 			double[] sum = new double[sequence.getSizeC()];
 			double[] cpt = new double[sequence.getSizeC()];
-
+			
 			int ioff = bounds.x + bounds.y * width;
 			int moff = 0;
-
+			
 			for (int iy = bounds.y, my = 0; my < bounds.height; my++, iy++, ioff += sequence.getSizeX() - bounds.width)
 				for (int ix = bounds.x, mx = 0; mx < bounds.width; mx++, ix++, ioff++, moff++)
 				{
-					if (iy >= 0 && ix >= 0 && iy < height && ix < width && mask[moff])
-						for (int z = 0; z < sequence.getSizeZ(); z++)
-							for (int c = 0; c < sum.length; c++)
-							{
-								cpt[c]++;
-								double val = Array1DUtil.getValue(z_c_xy[z][c], ioff, signed);
-								sum[c] += val;
-								if (val > max[c]) max[c] = val;
-								if (val < min[c]) min[c] = val;
-							}
+					if (iy >= 0 && ix >= 0 && iy < height && ix < width && mask[moff]) for (int z = 0; z < sequence.getSizeZ(); z++)
+						for (int c = 0; c < sum.length; c++)
+						{
+							cpt[c]++;
+							double val = Array1DUtil.getValue(z_c_xy[z][c], ioff, signed);
+							sum[c] += val;
+							if (val > max[c]) max[c] = val;
+							if (val < min[c]) min[c] = val;
+						}
 				}
-
+			
 			for (int c = 0; c < sum.length; c++)
 			{
 				sheet.addCell(new Number(5 + 4 * c + 1, row, min[c]));
@@ -343,18 +344,18 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 			e.printStackTrace();
 		}
 	}
-
+	
 	@Override
 	public void clean()
 	{
 		ROIColors.clear();
-
+		
 		// remove listeners
 		for (final Sequence sequence : Icy.getMainInterface().getSequences())
 			sequence.removeListener(this);
-
+		
 		Icy.getMainInterface().removeListener(this);
-
+		
 		// clean static stuff (if this is the last instance)
 		if (getNbInstances() == 1)
 		{
@@ -373,102 +374,102 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 			}
 		}
 	}
-
+	
 	// MAIN LISTENER //
 	public void viewerOpened(MainEvent event)
 	{
 	}
-
+	
 	public void viewerFocused(MainEvent event)
 	{
 	}
-
+	
 	public void viewerClosed(MainEvent event)
 	{
 	}
-
+	
 	public void sequenceOpened(MainEvent event)
 	{
 		((Sequence) event.getSource()).addListener(this);
 	}
-
+	
 	public void sequenceFocused(MainEvent event)
 	{
 	}
-
+	
 	public void sequenceClosed(MainEvent event)
 	{
 		((Sequence) event.getSource()).removeListener(this);
 	}
-
+	
 	public void roiRemoved(MainEvent event)
 	{
 	}
-
+	
 	public void roiAdded(MainEvent event)
 	{
 	}
-
+	
 	public void pluginOpened(MainEvent event)
 	{
 	}
-
+	
 	public void pluginClosed(MainEvent event)
 	{
 	}
-
+	
 	public void painterRemoved(MainEvent event)
 	{
 	}
-
+	
 	public void painterAdded(MainEvent event)
 	{
 	}
-
+	
 	// SEQUENCE LISTENER //
 	@Override
 	public void sequenceClosed(Sequence sequence)
 	{
 		sequence.removeListener(this);
 	}
-
+	
 	@Override
 	public void sequenceChanged(SequenceEvent sequenceEvent)
 	{
 		if (!liveUpdate.getValue()) return;
-
+		
 		if (sequenceEvent.getSourceType() != SequenceEventSourceType.SEQUENCE_ROI) return;
-
+		
 		Sequence sequence = sequenceEvent.getSequence();
-
-		Sequence selected = currentSeq.getValue(false);
+		
+		Sequence selected = currentSeq.getValue();
 		if (selected != sequence) return;
-
+		
 		Object roi = sequenceEvent.getSource();
 		WritableSheet sheet = getOrCreateSheet(sequence);
-
+		
 		switch (sequenceEvent.getType())
 		{
-		case ADDED:
-		case CHANGED:
-			if (roi == null)
-				update(sequence);
-			else update(sequence, (ROI2D) roi);
-
+			case ADDED:
+			case CHANGED:
+				if (roi == null)
+					update(sequence);
+				else update(sequence, (ROI2D) roi);
+			
 			break;
-
-		case REMOVED:
-			int nbDeleted = (roi == null) ? sheet.getRows() - 1 : 1;
-
-			for (int i = nbDeleted; i > 0; i--)
-				sheet.removeRow(i);
-			update(sequence);
+			
+			case REMOVED:
+				int nbDeleted = (roi == null) ? sheet.getRows() - 1 : 1;
+				
+				for (int i = nbDeleted; i > 0; i--)
+					sheet.removeRow(i);
+				update(sequence);
 			break;
 		}
-
+		
 		// in any case, update the table
 		// table.repaint();
 		table.updateSheet(sheet);
 	}
-
+	
 }
