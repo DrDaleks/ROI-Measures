@@ -8,6 +8,7 @@ import icy.sequence.Sequence;
 import icy.sequence.SequenceEvent;
 import icy.sequence.SequenceEvent.SequenceEventSourceType;
 import icy.sequence.SequenceListener;
+import icy.system.thread.ThreadUtil;
 import icy.type.collection.array.Array1DUtil;
 
 import java.awt.Color;
@@ -39,6 +40,7 @@ import plugins.adufour.ezplug.EzException;
 import plugins.adufour.ezplug.EzPlug;
 import plugins.adufour.ezplug.EzVar;
 import plugins.adufour.ezplug.EzVarBoolean;
+import plugins.adufour.ezplug.EzVarInteger;
 import plugins.adufour.ezplug.EzVarListener;
 import plugins.adufour.ezplug.EzVarSequence;
 
@@ -66,6 +68,9 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 	
 	private final EzVarSequence			currentSeq	= new EzVarSequence("Current sequence");
 	
+	private final EzVarBoolean			restrictZ	= new EzVarBoolean("Z selection", false);
+	private final EzVarInteger			selectedZ	= new EzVarInteger("Selected Z", 0, 0, 0, 1);
+	
 	private final EzVarBoolean			liveUpdate	= new EzVarBoolean("Auto-update", true);
 	
 	private final ExcelTable			table		= new ExcelTable();
@@ -80,6 +85,30 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 		getUI().setActionPanelVisible(!liveUpdate.getValue());
 		
 		addEzComponent(currentSeq);
+		
+		addEzComponent(restrictZ);
+		
+		restrictZ.addVisibilityTriggerTo(selectedZ, true);
+		
+		restrictZ.addVarChangeListener(new EzVarListener<Boolean>()
+		{
+			@Override
+			public void variableChanged(EzVar<Boolean> source, Boolean newValue)
+			{
+				updateMaxZ();
+			}
+		});
+		
+		addEzComponent(selectedZ);
+		
+		selectedZ.addVarChangeListener(new EzVarListener<Integer>()
+		{
+			@Override
+			public void variableChanged(EzVar<Integer> source, Integer newValue)
+			{
+				execute();
+			}
+		});
 		
 		addEzComponent(liveUpdate);
 		
@@ -150,6 +179,17 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 			@Override
 			public void variableChanged(EzVar<Sequence> source, Sequence sequence)
 			{
+				if (sequence == null || sequence.getSizeZ() == 1)
+				{
+					restrictZ.setVisible(false);
+					restrictZ.setValue(false);
+					selectedZ.setValue(0);
+				}
+				else
+				{
+					restrictZ.setVisible(true);
+				}
+				
 				table.updateSheet(sequence == null ? null : getOrCreateSheet(sequence));
 				if (sequence != null && sequence.getFirstViewer() != null) update(sequence);
 				getUI().repack(false);
@@ -173,6 +213,25 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 		}
 		catch (EzException e)
 		{
+		}
+	}
+	
+	private void updateMaxZ()
+	{
+		if (currentSeq.getValue() != null)
+		{
+			int maxZ = currentSeq.getValue().getSizeZ() - 1;
+			
+			selectedZ.setMaxValue(maxZ);
+			
+			if (selectedZ.getValue() >= maxZ)
+			{
+				selectedZ.setValue(maxZ);
+			}
+			else
+			{
+				if (liveUpdate.getValue()) execute();
+			}
 		}
 	}
 	
@@ -313,18 +372,24 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 			int ioff = bounds.x + bounds.y * width;
 			int moff = 0;
 			
+			int minZ = restrictZ.getValue() ? selectedZ.getValue() : 0;
+			int maxZ = restrictZ.getValue() ? minZ : sequence.getSizeZ() - 1;
+			
 			for (int iy = bounds.y, my = 0; my < bounds.height; my++, iy++, ioff += sequence.getSizeX() - bounds.width)
 				for (int ix = bounds.x, mx = 0; mx < bounds.width; mx++, ix++, ioff++, moff++)
 				{
-					if (iy >= 0 && ix >= 0 && iy < height && ix < width && mask[moff]) for (int z = 0; z < sequence.getSizeZ(); z++)
-						for (int c = 0; c < sum.length; c++)
-						{
-							cpt[c]++;
-							double val = Array1DUtil.getValue(z_c_xy[z][c], ioff, signed);
-							sum[c] += val;
-							if (val > max[c]) max[c] = val;
-							if (val < min[c]) min[c] = val;
-						}
+					if (iy >= 0 && ix >= 0 && iy < height && ix < width && mask[moff])
+					{
+						for (int z = minZ; z <= maxZ; z++)
+							for (int c = 0; c < sum.length; c++)
+							{
+								cpt[c]++;
+								double val = Array1DUtil.getValue(z_c_xy[z][c], ioff, signed);
+								sum[c] += val;
+								if (val > max[c]) max[c] = val;
+								if (val < min[c]) min[c] = val;
+							}
+					}
 				}
 			
 			for (int c = 0; c < sum.length; c++)
@@ -436,40 +501,53 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 	@Override
 	public void sequenceChanged(SequenceEvent sequenceEvent)
 	{
-		if (!liveUpdate.getValue()) return;
-		
-		if (sequenceEvent.getSourceType() != SequenceEventSourceType.SEQUENCE_ROI) return;
-		
 		Sequence sequence = sequenceEvent.getSequence();
 		
 		Sequence selected = currentSeq.getValue();
 		if (selected != sequence) return;
 		
-		Object roi = sequenceEvent.getSource();
-		WritableSheet sheet = getOrCreateSheet(sequence);
-		
-		switch (sequenceEvent.getType())
+		if (sequenceEvent.getSourceType() == SequenceEventSourceType.SEQUENCE_DATA)
 		{
-			case ADDED:
-			case CHANGED:
-				if (roi == null)
-					update(sequence);
-				else update(sequence, (ROI2D) roi);
-			
-			break;
-			
-			case REMOVED:
-				int nbDeleted = (roi == null) ? sheet.getRows() - 1 : 1;
+			ThreadUtil.invokeLater(new Runnable()
+			{
 				
-				for (int i = nbDeleted; i > 0; i--)
-					sheet.removeRow(i);
-				update(sequence);
-			break;
+				@Override
+				public void run()
+				{
+					updateMaxZ();
+				}
+			});
 		}
 		
-		// in any case, update the table
-		// table.repaint();
-		table.updateSheet(sheet);
+		if (!liveUpdate.getValue()) return;
+		
+		if (sequenceEvent.getSourceType() == SequenceEventSourceType.SEQUENCE_ROI)
+		{
+			Object roi = sequenceEvent.getSource();
+			WritableSheet sheet = getOrCreateSheet(sequence);
+			
+			switch (sequenceEvent.getType())
+			{
+				case ADDED:
+				case CHANGED:
+					if (roi == null)
+						update(sequence);
+					else update(sequence, (ROI2D) roi);
+				
+				break;
+				
+				case REMOVED:
+					int nbDeleted = (roi == null) ? sheet.getRows() - 1 : 1;
+					
+					for (int i = nbDeleted; i > 0; i--)
+						sheet.removeRow(i);
+					update(sequence);
+				break;
+			}
+			
+			// in any case, update the table
+			// table.repaint();
+			table.updateSheet(sheet);
+		}
 	}
-	
 }
