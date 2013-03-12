@@ -358,7 +358,7 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 			sheet.addCell(new Number(4, row, bounds.width));
 			sheet.addCell(new Number(5, row, bounds.height));
 			
-			boolean[] mask = roi.getAsBooleanMask().mask;
+			boolean[] mask = roi.getBooleanMask().mask;
 			Object[][] z_c_xy = (Object[][]) sequence.getDataXYCZ(sequence.getFirstViewer().getT());
 			boolean signed = sequence.getDataType_().isSigned();
 			int width = sequence.getSizeX();
@@ -373,7 +373,7 @@ public class ROIMeasures extends EzPlug implements MainListener, SequenceListene
 			int moff = 0;
 			
 			int minZ = restrictZ.getValue() ? selectedZ.getValue() : 0;
-			int maxZ = restrictZ.getValue() ? minZ : sequence.getSizeZ() - 1;
+			int maxZ = restrictZ.getValue() ? minZ : sequence.getSizeZ(sequence.getFirstViewer().getT()) - 1;
 			
 			for (int iy = bounds.y, my = 0; my < bounds.height; my++, iy++, ioff += sequence.getSizeX() - bounds.width)
 				for (int ix = bounds.x, mx = 0; mx < bounds.width; mx++, ix++, ioff++, moff++)
