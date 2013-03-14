@@ -18,6 +18,7 @@ import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.WorkbookUtil;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFColor;
 
@@ -92,6 +93,8 @@ public class ROIStatistics extends Plugin implements ROIBlock
                 
                 String sheetName = FileUtil.getFileName(sequence.getFilename());
                 if (sheetName == null) sheetName = sequence.getName();
+                
+                sheetName = WorkbookUtil.createSafeSheetName(sheetName);
                 
                 Sheet sheet = wb.getSheet(sheetName);
                 if (sheet == null) sheet = wb.createSheet(sheetName);
