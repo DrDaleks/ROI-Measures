@@ -10,6 +10,8 @@ import icy.sequence.Sequence;
 
 import java.awt.Color;
 import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 import org.apache.poi.hssf.usermodel.HSSFPalette;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
@@ -25,6 +27,7 @@ import org.apache.poi.xssf.usermodel.XSSFColor;
 import plugins.adufour.blocks.tools.roi.ROIBlock;
 import plugins.adufour.blocks.util.VarList;
 import plugins.adufour.vars.lang.VarROIArray;
+import plugins.adufour.vars.lang.VarSequence;
 import plugins.adufour.vars.lang.VarWorkbook;
 
 public class ROIStatistics extends Plugin implements ROIBlock
@@ -41,12 +44,14 @@ public class ROIStatistics extends Plugin implements ROIBlock
     private final int COL_MAX_INTENSITY = 9;
     
     VarROIArray       rois              = new VarROIArray("Regions of interest");
+    VarSequence       sequence          = new VarSequence("Sequence", null);
     VarWorkbook       book              = new VarWorkbook("Workbook", (Workbook) null);
     
     @Override
     public void declareInput(VarList inputMap)
     {
         inputMap.add(rois);
+        inputMap.add(sequence);
     }
     
     @Override
@@ -71,7 +76,9 @@ public class ROIStatistics extends Plugin implements ROIBlock
         
         int roiID = 1;
         
-        for (ROI roi : rois)
+        Sequence extraSequence = sequence.getValue();
+        
+        for (ROI roi : rois.getValue())
         {
             Color roiColor = roi.getColor();
             CellStyle style = wb.createCellStyle();
@@ -87,7 +94,52 @@ public class ROIStatistics extends Plugin implements ROIBlock
                 ((XSSFCellStyle) style).setFillForegroundColor(new XSSFColor(roiColor));
             }
             
-            for (Sequence sequence : roi.getSequences())
+            ArrayList<Sequence> sequences = roi.getSequences();
+            if (extraSequence != null && !sequences.contains(extraSequence)) sequences.add(extraSequence);
+            
+            if (sequences.size() == 0)
+            {
+                String sheetName = "ROI Statistics";
+                
+                Sheet sheet = wb.getSheet(sheetName);
+                if (sheet == null) sheet = wb.createSheet(sheetName);
+                
+                Row header = sheet.getRow(0);
+                if (header == null)
+                {
+                    header = sheet.createRow(0);
+                    header.getCell(COL_NAME).setCellValue("Name");
+                    header.getCell(COL_X).setCellValue("X");
+                    header.getCell(COL_Y).setCellValue("Y");
+                    header.getCell(COL_WIDTH).setCellValue("Width");
+                    header.getCell(COL_HEIGHT).setCellValue("Height");
+                    header.getCell(COL_SURFACE).setCellValue("Perimeter");
+                    header.getCell(COL_VOLUME).setCellValue("Area");
+                }
+                
+                Row row = sheet.createRow(roiID);
+                
+                Cell name = row.getCell(COL_NAME);
+                name.setCellValue(roi.getName());
+                name.setCellStyle(style);
+                
+                if (roi instanceof ROI2D)
+                {
+                    ROI2D r2 = (ROI2D) roi;
+                    
+                    Rectangle2D bounds = r2.getBounds2D();
+                    
+                    row.getCell(COL_X).setCellValue(bounds.getX());
+                    row.getCell(COL_Y).setCellValue(bounds.getY());
+                    row.getCell(COL_WIDTH).setCellValue(bounds.getWidth());
+                    row.getCell(COL_HEIGHT).setCellValue(bounds.getHeight());
+                }
+                
+                row.getCell(COL_VOLUME).setCellValue(roi.getVolume());
+                row.getCell(COL_SURFACE).setCellValue(roi.getPerimeter());
+                
+            }
+            else for (Sequence sequence : sequences)
             {
                 int sizeC = sequence.getSizeC();
                 
@@ -108,8 +160,8 @@ public class ROIStatistics extends Plugin implements ROIBlock
                     header.getCell(COL_Y).setCellValue("Y");
                     header.getCell(COL_WIDTH).setCellValue("Width");
                     header.getCell(COL_HEIGHT).setCellValue("Height");
-                    header.getCell(COL_SURFACE).setCellValue("Surface");
-                    header.getCell(COL_VOLUME).setCellValue("Volume");
+                    header.getCell(COL_SURFACE).setCellValue("Perimeter");
+                    header.getCell(COL_VOLUME).setCellValue("Area");
                     if (sizeC == 0)
                     {
                         header.getCell(COL_MIN_INTENSITY).setCellValue("Min. intensity");
@@ -118,11 +170,11 @@ public class ROIStatistics extends Plugin implements ROIBlock
                     }
                     else
                     {
-                        for(int c = 0; c < sizeC; c++)
+                        for (int c = 0; c < sizeC; c++)
                         {
-                            header.getCell(COL_MIN_INTENSITY + 3 * c).setCellValue("Min. (ch. " + c + ")");
-                            header.getCell(COL_AVG_INTENSITY + 3 * c).setCellValue("Avg. (ch. " + c + ")");
-                            header.getCell(COL_MAX_INTENSITY + 3 * c).setCellValue("Max. (ch. " + c + ")");
+                            header.getCell(COL_MIN_INTENSITY + 3 * c).setCellValue("Min. (" + sequence.getChannelName(c) + ")");
+                            header.getCell(COL_AVG_INTENSITY + 3 * c).setCellValue("Avg. (" + sequence.getChannelName(c) + ")");
+                            header.getCell(COL_MAX_INTENSITY + 3 * c).setCellValue("Max. (" + sequence.getChannelName(c) + ")");
                         }
                     }
                 }
@@ -155,7 +207,7 @@ public class ROIStatistics extends Plugin implements ROIBlock
                             row.getCell(COL_AVG_INTENSITY + 3 * c).setCellValue(info.meanIntensity);
                             row.getCell(COL_MAX_INTENSITY + 3 * c).setCellValue(info.maxIntensity);
                         }
-                        copy.delete();
+                        copy.remove();
                     }
                     else
                     {
