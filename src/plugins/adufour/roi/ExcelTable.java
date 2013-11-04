@@ -48,6 +48,7 @@ public class ExcelTable extends JScrollPane
                 {
                     table.setModel(new SheetTableModel(page));
                 }
+                table.setColumnControlVisible(true);
             }
         });
     }
