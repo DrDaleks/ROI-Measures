@@ -5,6 +5,7 @@ import icy.image.IntensityInfo;
 import icy.plugin.abstract_.Plugin;
 import icy.roi.ROI;
 import icy.roi.ROI2D;
+import icy.roi.ROI3D;
 import icy.roi.ROIUtil;
 import icy.sequence.Sequence;
 
@@ -138,94 +139,120 @@ public class ROIStatistics extends Plugin implements ROIBlock
                 row.getCell(COL_SURFACE).setCellValue(roi.getPerimeter());
                 
             }
-            else for (Sequence sequence : sequences)
-            {
-                int sizeC = sequence.getSizeC();
-                
-                String sheetName = FileUtil.getFileName(sequence.getFilename());
-                if (sheetName == null) sheetName = sequence.getName();
-                
-                sheetName = WorkbookUtil.createSafeSheetName(sheetName);
-                
-                Sheet sheet = wb.getSheet(sheetName);
-                if (sheet == null) sheet = wb.createSheet(sheetName);
-                
-                Row header = sheet.getRow(0);
-                if (header == null)
+            else
+                for (Sequence sequence : sequences)
                 {
-                    header = sheet.createRow(0);
-                    header.getCell(COL_NAME).setCellValue("Name");
-                    header.getCell(COL_X).setCellValue("X");
-                    header.getCell(COL_Y).setCellValue("Y");
-                    header.getCell(COL_WIDTH).setCellValue("Width");
-                    header.getCell(COL_HEIGHT).setCellValue("Height");
-                    header.getCell(COL_SURFACE).setCellValue("Perimeter");
-                    header.getCell(COL_VOLUME).setCellValue("Area");
-                    if (sizeC == 0)
+                    int sizeC = sequence.getSizeC();
+                    
+                    String sheetName = FileUtil.getFileName(sequence.getFilename());
+                    if (sheetName == null) sheetName = sequence.getName();
+                    
+                    sheetName = WorkbookUtil.createSafeSheetName(sheetName);
+                    
+                    Sheet sheet = wb.getSheet(sheetName);
+                    if (sheet == null) sheet = wb.createSheet(sheetName);
+                    
+                    Row header = sheet.getRow(0);
+                    if (header == null)
                     {
-                        header.getCell(COL_MIN_INTENSITY).setCellValue("Min. intensity");
-                        header.getCell(COL_AVG_INTENSITY).setCellValue("Avg. intensity");
-                        header.getCell(COL_MAX_INTENSITY).setCellValue("Max. intensity");
-                    }
-                    else
-                    {
-                        for (int c = 0; c < sizeC; c++)
+                        header = sheet.createRow(0);
+                        header.getCell(COL_NAME).setCellValue("Name");
+                        header.getCell(COL_X).setCellValue("X");
+                        header.getCell(COL_Y).setCellValue("Y");
+                        header.getCell(COL_WIDTH).setCellValue("Width");
+                        header.getCell(COL_HEIGHT).setCellValue("Height");
+                        header.getCell(COL_SURFACE).setCellValue("Perimeter");
+                        header.getCell(COL_VOLUME).setCellValue("Area");
+                        if (sizeC == 0)
                         {
-                            header.getCell(COL_MIN_INTENSITY + 3 * c).setCellValue("Min. (" + sequence.getChannelName(c) + ")");
-                            header.getCell(COL_AVG_INTENSITY + 3 * c).setCellValue("Avg. (" + sequence.getChannelName(c) + ")");
-                            header.getCell(COL_MAX_INTENSITY + 3 * c).setCellValue("Max. (" + sequence.getChannelName(c) + ")");
+                            header.getCell(COL_MIN_INTENSITY).setCellValue("Min. intensity");
+                            header.getCell(COL_AVG_INTENSITY).setCellValue("Avg. intensity");
+                            header.getCell(COL_MAX_INTENSITY).setCellValue("Max. intensity");
+                        }
+                        else
+                        {
+                            for (int c = 0; c < sizeC; c++)
+                            {
+                                header.getCell(COL_MIN_INTENSITY + 3 * c).setCellValue("Min. (" + sequence.getChannelName(c) + ")");
+                                header.getCell(COL_AVG_INTENSITY + 3 * c).setCellValue("Avg. (" + sequence.getChannelName(c) + ")");
+                                header.getCell(COL_MAX_INTENSITY + 3 * c).setCellValue("Max. (" + sequence.getChannelName(c) + ")");
+                            }
                         }
                     }
-                }
-                
-                Row row = sheet.createRow(roiID);
-                
-                Cell name = row.getCell(COL_NAME);
-                name.setCellValue(roi.getName());
-                name.setCellStyle(style);
-                
-                if (roi instanceof ROI2D)
-                {
-                    ROI2D r2 = (ROI2D) roi;
                     
-                    Rectangle2D bounds = r2.getBounds2D();
+                    Row row = sheet.createRow(roiID);
                     
-                    row.getCell(COL_X).setCellValue(bounds.getX());
-                    row.getCell(COL_Y).setCellValue(bounds.getY());
-                    row.getCell(COL_WIDTH).setCellValue(bounds.getWidth());
-                    row.getCell(COL_HEIGHT).setCellValue(bounds.getHeight());
+                    Cell name = row.getCell(COL_NAME);
+                    name.setCellValue(roi.getName());
+                    name.setCellStyle(style);
                     
-                    if (sizeC > 1 && r2.getC() == -1)
+                    if (roi instanceof ROI2D)
                     {
-                        ROI2D copy = (ROI2D) r2.getCopy();
-                        for (int c = 0; c < sizeC; c++)
+                        ROI2D r2 = (ROI2D) roi;
+                        
+                        Rectangle2D bounds = r2.getBounds2D();
+                        
+                        row.getCell(COL_X).setCellValue(bounds.getX());
+                        row.getCell(COL_Y).setCellValue(bounds.getY());
+                        row.getCell(COL_WIDTH).setCellValue(bounds.getWidth());
+                        row.getCell(COL_HEIGHT).setCellValue(bounds.getHeight());
+                        
+                        if (sizeC > 1 && r2.getC() == -1)
                         {
-                            copy.setC(c);
-                            IntensityInfo info = ROIUtil.getIntensityInfo(sequence, copy);
-                            row.getCell(COL_MIN_INTENSITY + 3 * c).setCellValue(info.minIntensity);
-                            row.getCell(COL_AVG_INTENSITY + 3 * c).setCellValue(info.meanIntensity);
-                            row.getCell(COL_MAX_INTENSITY + 3 * c).setCellValue(info.maxIntensity);
+                            ROI2D copy = (ROI2D) r2.getCopy();
+                            for (int c = 0; c < sizeC; c++)
+                            {
+                                copy.setC(c);
+                                IntensityInfo info = ROIUtil.getIntensityInfo(sequence, copy);
+                                row.getCell(COL_MIN_INTENSITY + 3 * c).setCellValue(info.minIntensity);
+                                row.getCell(COL_AVG_INTENSITY + 3 * c).setCellValue(info.meanIntensity);
+                                row.getCell(COL_MAX_INTENSITY + 3 * c).setCellValue(info.maxIntensity);
+                            }
+                            copy.remove();
                         }
-                        copy.remove();
+                        else
+                        {
+                            IntensityInfo info = ROIUtil.getIntensityInfo(sequence, roi);
+                            row.getCell(COL_MIN_INTENSITY).setCellValue(info.minIntensity);
+                            row.getCell(COL_AVG_INTENSITY).setCellValue(info.meanIntensity);
+                            row.getCell(COL_MAX_INTENSITY).setCellValue(info.maxIntensity);
+                        }
                     }
-                    else
+                    else if (roi instanceof ROI3D)
                     {
-                        IntensityInfo info = ROIUtil.getIntensityInfo(sequence, roi);
-                        row.getCell(COL_MIN_INTENSITY).setCellValue(info.minIntensity);
-                        row.getCell(COL_AVG_INTENSITY).setCellValue(info.meanIntensity);
-                        row.getCell(COL_MAX_INTENSITY).setCellValue(info.maxIntensity);
+                        ROI3D r3 = (ROI3D) roi;
+                        
+                        if (sizeC > 1 && r3.getC() == -1)
+                        {
+                            ROI3D copy = (ROI3D) r3.getCopy();
+                            for (int c = 0; c < sizeC; c++)
+                            {
+                                copy.setC(c);
+                                IntensityInfo info = ROIUtil.getIntensityInfo(sequence, copy);
+                                row.getCell(COL_MIN_INTENSITY + 3 * c).setCellValue(info.minIntensity);
+                                row.getCell(COL_AVG_INTENSITY + 3 * c).setCellValue(info.meanIntensity);
+                                row.getCell(COL_MAX_INTENSITY + 3 * c).setCellValue(info.maxIntensity);
+                            }
+                            copy.remove();
+                        }
+                        else
+                        {
+                            IntensityInfo info = ROIUtil.getIntensityInfo(sequence, roi);
+                            row.getCell(COL_MIN_INTENSITY).setCellValue(info.minIntensity);
+                            row.getCell(COL_AVG_INTENSITY).setCellValue(info.meanIntensity);
+                            row.getCell(COL_MAX_INTENSITY).setCellValue(info.maxIntensity);
+                        }
                     }
+                    
+                    row.getCell(COL_VOLUME).setCellValue(roi.getVolume());
+                    row.getCell(COL_SURFACE).setCellValue(roi.getPerimeter());
+                    
                 }
-                
-                row.getCell(COL_VOLUME).setCellValue(roi.getVolume());
-                row.getCell(COL_SURFACE).setCellValue(roi.getPerimeter());
-                
-            }
             
             roiID++;
         }
         
         // this is mandatory since sheet creation cannot be detected
         book.valueChanged(book, null, wb);
-    }
+    }    
 }
