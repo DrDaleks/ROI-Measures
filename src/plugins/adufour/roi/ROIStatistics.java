@@ -257,7 +257,7 @@ public class ROIStatistics extends Plugin implements ROIBlock
                         {
                             if (iy >= 0 && ix >= 0 && iy < height && ix < width && mask[moff])
                             {
-                                for (int z = minZ; z <= maxZ; z++)
+                                for (int z = minZ; z < maxZ; z++)
                                     for (int c = 0; c < sum.length; c++)
                                     {
                                         cpt[c]++;
