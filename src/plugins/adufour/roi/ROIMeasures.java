@@ -10,6 +10,7 @@ import icy.sequence.Sequence;
 import icy.sequence.SequenceEvent;
 import icy.sequence.SequenceEvent.SequenceEventSourceType;
 import icy.sequence.SequenceListener;
+import icy.system.IcyHandledException;
 import icy.system.thread.ThreadUtil;
 import icy.type.collection.array.Array1DUtil;
 import icy.type.rectangle.Rectangle3D;
@@ -460,10 +461,12 @@ public class ROIMeasures extends EzPlug implements GlobalSequenceListener, Seque
             }
             
         }
-        catch (Exception e)
+        catch (RowsExceededException e)
         {
-            e.printStackTrace();
-            // We want a bug report to investigate the issue
+            throw new IcyHandledException("[ROI measures] The maximum number of rows is exceeded (65536).");
+        }
+        catch (WriteException e)
+        {
             throw new RuntimeException(e);
         }
     }
@@ -544,20 +547,20 @@ public class ROIMeasures extends EzPlug implements GlobalSequenceListener, Seque
             
             switch (sequenceEvent.getType())
             {
-            case ADDED:
-                update(sequence);
+                case ADDED:
+                    update(sequence);
                 break;
-            
-            case CHANGED:
-                if (roi != null) update(sequence, (ROI) roi);
-                break;
-            
-            case REMOVED:
-                int nbDeleted = (roi == null) ? sheet.getRows() - 1 : 1;
                 
-                for (int i = nbDeleted; i > 0; i--)
-                    sheet.removeRow(i);
-                update(sequence);
+                case CHANGED:
+                    if (roi != null) update(sequence, (ROI) roi);
+                break;
+                
+                case REMOVED:
+                    int nbDeleted = (roi == null) ? sheet.getRows() - 1 : 1;
+                    
+                    for (int i = nbDeleted; i > 0; i--)
+                        sheet.removeRow(i);
+                    update(sequence);
                 break;
             }
             
