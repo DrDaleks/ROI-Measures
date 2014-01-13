@@ -235,8 +235,11 @@ public class ROIStatistics extends Plugin implements ROIBlock
                     row.getCell(COL_WIDTH).setCellValue(bounds.getWidth());
                     row.getCell(COL_HEIGHT).setCellValue(bounds.getHeight());
                     
+                    int t = r2.getT();
+                    if (r2.getBounds5D().isInfiniteT()) t = 0; // FIXME
+                        
                     boolean[] mask = r2.getBooleanMask(true).mask;
-                    Object[][] z_c_xy = (Object[][]) sequence.getDataXYCZ(sequence.getFirstViewer().getPositionT());
+                    Object[][] z_c_xy = (Object[][]) sequence.getDataXYCZ(t);
                     boolean signed = sequence.getDataType_().isSigned();
                     int width = sequence.getSizeX();
                     int height = sequence.getSizeY();
@@ -280,14 +283,19 @@ public class ROIStatistics extends Plugin implements ROIBlock
                     row.getCell(COL_WIDTH).setCellValue(bounds3.getSizeX());
                     row.getCell(COL_HEIGHT).setCellValue(bounds3.getSizeY());
                     
-                    TreeMap<Integer, BooleanMask2D> masks = r3.getBooleanMask(true).mask;
-                    Object[][] z_c_xy = (Object[][]) sequence.getDataXYCZ(sequence.getFirstViewer().getPositionT());
+                    int t = r3.getT();
+                    if (r3.getBounds5D().isInfiniteT()) t = 0; // FIXME
+                        
+                    Object[][] z_c_xy = (Object[][]) sequence.getDataXYCZ(t);
                     boolean signed = sequence.getDataType_().isSigned();
                     int width = sequence.getSizeX();
                     int height = sequence.getSizeY();
+                    TreeMap<Integer, BooleanMask2D> masks = r3.getBooleanMask(true).mask;
                     
                     for (Integer z : masks.keySet())
                     {
+                        if (z < 0 || z >= sequence.getSizeZ()) continue;
+                        
                         boolean[] mask = masks.get(z).mask;
                         Rectangle bounds = masks.get(z).bounds;
                         int ioff = bounds.x + bounds.y * width;
